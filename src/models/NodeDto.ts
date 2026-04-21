@@ -1,13 +1,15 @@
 export enum NodeType {
     SERVICE = "SERVICE",
     DATABASE = "DATABASE",
-    EXTERNAL = "EXTERNAL",
+    CACHE = "CACHE",
+    QUEUE = "QUEUE",
+    GATEWAY = "GATEWAY",
+    INPUT = "INPUT",
 }
 
 export interface NodeDto {
     id: string;
     name: string;
     type: NodeType;
-    namespace: string;
     lastSeenAt: string;
 }

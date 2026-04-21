@@ -2,55 +2,55 @@ import type { GraphSnapshot } from "../models";
 import { NodeType } from "../models";
 
 export const mockSnapshot: GraphSnapshot = {
+    namespace: "default",
     generatedAt: new Date().toISOString(),
     nodes: [
         {
             id: "ingress",
             name: "ingress",
-            type: NodeType.EXTERNAL,
-            namespace: "default",
+            type: NodeType.INPUT,
+            lastSeenAt: new Date().toISOString(),
+        },
+        {
+            id: "internal-cluster",
+            name: "internal-cluster",
+            type: NodeType.INPUT,
             lastSeenAt: new Date().toISOString(),
         },
         {
             id: "auth-service",
             name: "auth-service",
             type: NodeType.SERVICE,
-            namespace: "default",
             lastSeenAt: new Date().toISOString(),
         },
         {
             id: "order-service",
             name: "order-service",
             type: NodeType.SERVICE,
-            namespace: "default",
             lastSeenAt: new Date().toISOString(),
         },
         {
             id: "ticket-service",
             name: "ticket-service",
             type: NodeType.SERVICE,
-            namespace: "default",
             lastSeenAt: new Date().toISOString(),
         },
         {
             id: "payment-service",
             name: "payment-service",
             type: NodeType.SERVICE,
-            namespace: "default",
             lastSeenAt: new Date().toISOString(),
         },
         {
             id: "notification-service",
             name: "notification-service",
             type: NodeType.SERVICE,
-            namespace: "default",
             lastSeenAt: new Date().toISOString(),
         },
         {
             id: "analytics-service",
             name: "analytics-service",
             type: NodeType.SERVICE,
-            namespace: "default",
             lastSeenAt: new Date().toISOString(),
         },
     ],
@@ -66,6 +66,19 @@ export const mockSnapshot: GraphSnapshot = {
             maxLatencyMs: 0,
             errorCount: 0,
             errorRate: 0,
+            lastSeenAt: new Date().toISOString(),
+        },
+        {
+            id: "e-internal",
+            sourceNodeId: "internal-cluster",
+            targetNodeId: "order-service",
+            protocol: "gRPC",
+            requestCount: 540,
+            requestsPerSecond: 15,
+            averageLatencyMs: 8,
+            maxLatencyMs: 40,
+            errorCount: 1,
+            errorRate: 0.002,
             lastSeenAt: new Date().toISOString(),
         },
         {
