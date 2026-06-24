@@ -5,7 +5,6 @@ export interface EdgeDto {
     sourceNodeId: string;
     targetNodeId: string;
     protocol: string;
-    requestCount: number;
     requestsPerSecond: number;
     averageLatencyMs: number;
     maxLatencyMs: number;

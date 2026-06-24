@@ -4,4 +4,5 @@ export interface RestartEventDto {
     reason: string | null;
     restartCount: number;
     countDelta: number;
+    recoveredAt: string | null;
 }
