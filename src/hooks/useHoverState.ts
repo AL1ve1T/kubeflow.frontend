@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { EdgeDto, NodeDto } from "../models";
 
 interface AdjacencyInfo {
@@ -108,20 +108,20 @@ export function useHoverState(nodes: NodeDto[], edges: EdgeDto[]) {
     );
 
     /** Toggle Focus mode: click the same node again to deselect */
-    const toggleSelectedNode = (nodeId: string) => {
+    const toggleSelectedNode = useCallback((nodeId: string) => {
         setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
-    };
+    }, []);
 
-    const clearSelection = () => setSelectedNodeId(null);
+    const clearSelection = useCallback(() => setSelectedNodeId(null), []);
 
-    const setHoveredEdgeId = (edgeId: string) => {
+    const setHoveredEdgeId = useCallback((edgeId: string) => {
         setHoveredEdgeIds([edgeId]);
-    };
+    }, []);
 
-    const clearHover = () => {
+    const clearHover = useCallback(() => {
         setHoveredNodeId(null);
         setHoveredEdgeIds(null);
-    };
+    }, []);
 
     return {
         hoveredNodeId,

@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 interface Position {
     x: number;
     y: number;
@@ -38,8 +40,16 @@ function lightenColor(hex: string, ratio: number): string {
     return adjustColor(hex, 255, ratio);
 }
 
+function extractPathStart(path: string): { x: number; y: number } | null {
+    const m = /^M\s*([-\d.eE+]+)[,\s]([-\d.eE+]+)/.exec(path.trim());
+    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : null;
+}
+
 /** Dash period in pixels (dash + gap). Shorter = denser. */
-const DASH_PERIOD = 52;
+export const DASH_PERIOD = 52;
+
+/** Shared keyframe name; defined once at the canvas level. */
+export const EDGE_FLOW_KEYFRAME = "edge-flow";
 
 /**
  * Animation duration in seconds. Higher RPS = faster flow.
@@ -53,7 +63,9 @@ function flowDuration(rps: number): number {
     return 0.7;
 }
 
-export function GraphEdge({ routeId, path, end, color, width, rps, showEndDot, hubTint, highlighted }: GraphEdgeProps) {
+export const GraphEdge = memo(GraphEdgeImpl);
+
+function GraphEdgeImpl({ path, end, color, width, rps, showEndDot, hubTint, highlighted }: GraphEdgeProps) {
     const outerColor = darkenColor(color, 0.3);
     const innerColor = lightenColor(color, 0.42);
     const coreWidth = Math.max(2, width * 0.6);
@@ -61,25 +73,21 @@ export function GraphEdge({ routeId, path, end, color, width, rps, showEndDot, h
     const tintColor = hubTint === "out" ? "#f59e0b" : hubTint === "in" ? "#6366f1" : null;
     const duration = flowDuration(rps);
 
-    // Sanitize routeId for use as a CSS identifier (edge IDs like "a->b" contain invalid chars)
-    const animId = `flow-${routeId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
     // Large gap so bubbles are clearly separated even when edges overlap
     const dashGap = Math.max(20, width * 2.0);
     const dashLen = Math.max(10, DASH_PERIOD - dashGap);
     // Dash stroke is thicker than the track so round ends bulge out visibly
     const dashWidth = coreWidth * 1.4;
 
+    // RPS badge – midpoint between path start and branch terminus
+    const rpsStart = extractPathStart(path);
+    const rpsMidX = rpsStart ? (rpsStart.x + end.x) / 2 : end.x;
+    const rpsMidY = (rpsStart ? (rpsStart.y + end.y) / 2 : end.y) - 12;
+    const rpsLabel = rps >= 10 ? `${Math.round(rps)} rps` : `${rps.toFixed(1)} rps`;
+    const rpsLabelW = rpsLabel.length * 5;
+
     return (
         <g style={{ pointerEvents: "none" }}>
-            <defs>
-                <style>{`
-                    @keyframes ${animId} {
-                        from { stroke-dashoffset: ${DASH_PERIOD}; }
-                        to   { stroke-dashoffset: 0; }
-                    }
-                `}</style>
-            </defs>
-
             {/* Hover glow */}
             {highlighted && (
                 <path d={path} fill="none" stroke={outerColor} strokeWidth={width + 8} opacity={0.28} strokeLinecap="round" strokeLinejoin="round" />
@@ -98,10 +106,38 @@ export function GraphEdge({ routeId, path, end, color, width, rps, showEndDot, h
                 strokeLinejoin="round"
                 strokeDasharray={`${dashLen} ${dashGap}`}
                 style={{
-                    animation: `${animId} ${duration}s linear infinite`,
+                    animationName: EDGE_FLOW_KEYFRAME,
+                    animationDuration: `${duration}s`,
+                    animationTimingFunction: "linear",
+                    animationIterationCount: "infinite",
                 }}
             />
 
+            {/* RPS badge – shown only on branch terminus segments when traffic is non-zero */}
+            {showEndDot && rps > 0 && (
+                <g>
+                    <rect
+                        x={rpsMidX - rpsLabelW / 2 - 3}
+                        y={rpsMidY - 6}
+                        width={rpsLabelW + 6}
+                        height={12}
+                        rx={3}
+                        fill="rgba(255,255,255,0.9)"
+                    />
+                    <text
+                        x={rpsMidX}
+                        y={rpsMidY}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={9}
+                        fontFamily="Inter, system-ui, sans-serif"
+                        fontWeight={600}
+                        fill={outerColor}
+                    >
+                        {rpsLabel}
+                    </text>
+                </g>
+            )}
             {/* Terminal dot at branch end (arrival at IN hub) */}
             {showEndDot && (
                 <circle cx={end.x} cy={end.y} r={dotRadius} fill={tintColor ?? outerColor} />

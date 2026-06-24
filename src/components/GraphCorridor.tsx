@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { CorridorRenderItem } from "../helpers/edgeHelpers";
 
 interface GraphCorridorProps {
@@ -11,7 +12,9 @@ interface GraphCorridorProps {
  * semi-transparent fill and an opaque stroke so it reads as infrastructure,
  * not just a thick edge.
  */
-export function GraphCorridor({ corridor, highlighted }: GraphCorridorProps) {
+export const GraphCorridor = memo(GraphCorridorImpl);
+
+function GraphCorridorImpl({ corridor, highlighted }: GraphCorridorProps) {
     const halfW = corridor.width / 2;
     const height = corridor.maxY - corridor.minY;
 

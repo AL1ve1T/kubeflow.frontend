@@ -1,11 +1,49 @@
-import type { NodeDto, PodPhase } from "../models";
+import { memo } from "react";
+import type { NodeDto, PodDto, PodPhase } from "../models";
 import { NodeType } from "../models";
-import { BAR_WIDTH, BORDER_RADIUS, HUB_WIDTH, NODE_HEIGHT, NODE_WIDTH } from "../helpers/nodeGeometry";
+import {
+    BAR_WIDTH,
+    BORDER_RADIUS,
+    HUB_WIDTH,
+    NODE_HEADER_H,
+    NODE_HEIGHT,
+    NODE_WIDTH,
+    POD_AREA_PAD,
+    POD_CARD_GAP,
+    POD_CARD_H,
+} from "../helpers/nodeGeometry";
 
-const NON_FUNCTIONAL_PHASES: PodPhase[] = ["NOT_READY", "CRASH_LOOP", "FAILED"];
+type HealthState = "healthy" | "degraded" | "dead" | "neutral";
 
-function isNonFunctional(node: NodeDto): boolean {
-    return NON_FUNCTIONAL_PHASES.includes(node.podPhase);
+const HEALTH_COLORS: Record<HealthState, { border: string; glow: string } | null> = {
+    healthy: { border: "#22c55e", glow: "#22c55e" },
+    degraded: { border: "#f97316", glow: "#f97316" },
+    dead: { border: "#ef4444", glow: "#ef4444" },
+    neutral: null,
+};
+
+const POD_PHASE_COLOR: Record<PodPhase, string> = {
+    RUNNING: "#22c55e",
+    PENDING: "#eab308",
+    NOT_READY: "#f97316",
+    CRASH_LOOP: "#ef4444",
+    FAILED: "#ef4444",
+    UNKNOWN: "#9ca3af",
+};
+
+function utilBarColor(v: number): string {
+    if (v >= 0.9) return "#ef4444";
+    if (v >= 0.75) return "#f97316";
+    if (v >= 0.5) return "#eab308";
+    return "#22c55e";
+}
+
+function getHealthState(node: NodeDto): HealthState {
+    const phase = node.podPhase;
+    if (phase === "FAILED" || phase === "CRASH_LOOP") return "dead";
+    if (phase === "NOT_READY" || phase === "PENDING") return "degraded";
+    if (phase === "RUNNING") return "healthy";
+    return "neutral";
 }
 
 /** Small red X badge rendered at a hub connection point */
@@ -25,6 +63,66 @@ function FaultBadge({ cx, cy }: { cx: number; cy: number }) {
             >
                 ✕
             </text>
+        </g>
+    );
+}
+
+function truncateMid(name: string, max: number): string {
+    if (name.length <= max) return name;
+    const keep = Math.floor((max - 1) / 2);
+    return `${name.slice(0, keep)}…${name.slice(name.length - keep)}`;
+}
+
+/** A pod rendered as a smaller version of the node, with its name + CPU/RAM. */
+function PodMiniCard({ pod, x, y, width }: { pod: PodDto; x: number; y: number; width: number }) {
+    const phaseColor = POD_PHASE_COLOR[pod.podPhase];
+    const labelW = 24;          // room for "CPU"/"RAM" label
+    const valW = 26;            // room for the percentage text
+    const barX = x + 8 + labelW;
+    const barW = Math.max(10, width - 16 - labelW - valW);
+
+    function bar(rowY: number, label: string, value: number) {
+        const has = value > 0;
+        const pct = Math.round(value * 100);
+        const fillW = has ? (barW * Math.min(pct, 100)) / 100 : 0;
+        return (
+            <g>
+                <text x={x + 8} y={rowY} dominantBaseline="central" textAnchor="start"
+                    fontSize={7} fontFamily="Inter, system-ui, sans-serif" fill="#9ca3af">{label}</text>
+                <rect x={barX} y={rowY - 2.5} width={barW} height={5} rx={2} ry={2} fill="#e5e7eb" />
+                {has && (
+                    <rect x={barX} y={rowY - 2.5} width={fillW} height={5} rx={2} ry={2} fill={utilBarColor(value)} />
+                )}
+                <text x={x + width - 8} y={rowY} dominantBaseline="central" textAnchor="end"
+                    fontSize={7} fontFamily="Inter, system-ui, sans-serif"
+                    fill={has ? "#374151" : "#9ca3af"}>{has ? `${pct}%` : "—"}</text>
+            </g>
+        );
+    }
+
+    return (
+        <g style={{ pointerEvents: "none" }}>
+            <rect
+                x={x}
+                y={y}
+                width={width}
+                height={POD_CARD_H}
+                rx={6}
+                ry={6}
+                fill="#f9fafb"
+                stroke={phaseColor}
+                strokeOpacity={0.5}
+                strokeWidth={1}
+            />
+            {/* Pod name + phase dot */}
+            <circle cx={x + 9} cy={y + 9} r={3} fill={phaseColor} />
+            <text x={x + 16} y={y + 9} dominantBaseline="central" textAnchor="start"
+                fontSize={8} fontFamily="Inter, system-ui, sans-serif" fontWeight={600} fill="#374151">
+                {truncateMid(pod.podName, 22)}
+            </text>
+            {/* CPU + RAM mini bars */}
+            {bar(y + 20, "CPU", pod.cpuUtilization)}
+            {bar(y + 28, "RAM", pod.memoryUtilization)}
         </g>
     );
 }
@@ -57,11 +155,15 @@ interface GraphNodeProps {
     onClick?: (nodeId: string, e: React.MouseEvent) => void;
 }
 
-export function GraphNode({ node, position, size, highlighted, selected, hasRightOut, hasRightIn, hasLeftIn, canvasHeight, onMouseEnter, onMouseLeave, onClick }: GraphNodeProps) {
+export const GraphNode = memo(GraphNodeImpl);
+
+function GraphNodeImpl({ node, position, size, highlighted, selected, hasRightOut, hasRightIn, hasLeftIn, canvasHeight, onMouseEnter, onMouseLeave, onClick }: GraphNodeProps) {
     const isBar = node.type === NodeType.INPUT;
     const nodeWidth = size?.width ?? NODE_WIDTH;
     const nodeHeight = size?.height ?? NODE_HEIGHT;
-    const fault = isNonFunctional(node);
+    const health = isBar ? "neutral" : getHealthState(node);
+    const healthColors = HEALTH_COLORS[health];
+    const fault = health === "dead" || health === "degraded";
 
     // Hub port geometry – capsule shapes straddling the right edge of the node
     const portW = HUB_WIDTH;
@@ -80,6 +182,17 @@ export function GraphNode({ node, position, size, highlighted, selected, hasRigh
     // Left incoming hub geometry – mirrors right side, single capsule centred on node
     const leftPortX = -(nodeWidth / 2) - portW + 4; // tip (connection point) at leftPortX
     const leftHubCX = leftPortX + portW / 2;
+
+    // Health dot colour for the workload roll-up (driven by worst pod phase).
+    const healthDot = healthColors ? healthColors.border : "#9ca3af";
+
+    // Inner pod mini-cards ("smaller version of the node"), sorted by name.
+    const pods = [...(node.pods ?? [])].sort((a, b) => a.podName.localeCompare(b.podName));
+    const hasPods = pods.length > 0;
+    const podCardW = nodeWidth - POD_AREA_PAD * 2;
+    const podsLeft = -nodeWidth / 2 + POD_AREA_PAD;
+    const podsTop = -nodeHeight / 2 + NODE_HEADER_H;
+    const headerY = hasPods ? -nodeHeight / 2 + 13 : -3;
 
     if (isBar) {
         const totalH = canvasHeight ?? 600;
@@ -187,11 +300,11 @@ export function GraphNode({ node, position, size, highlighted, selected, hasRigh
                 rx={BORDER_RADIUS}
                 ry={BORDER_RADIUS}
                 fill="#ffffff"
-                stroke={fault ? "#ef4444" : highlighted ? "#3b82f6" : "#d1d5db"}
-                strokeWidth={fault ? 2.5 : highlighted ? 2 : 1.5}
+                stroke={healthColors ? healthColors.border : highlighted ? "#3b82f6" : "#d1d5db"}
+                strokeWidth={healthColors ? 2.5 : highlighted ? 2 : 1.5}
             />
-            {/* Fault pulse ring – extra red glow when pod is non-functional */}
-            {fault && (
+            {/* Health glow ring */}
+            {healthColors && (
                 <rect
                     x={-nodeWidth / 2 - 4}
                     y={-nodeHeight / 2 - 4}
@@ -200,7 +313,7 @@ export function GraphNode({ node, position, size, highlighted, selected, hasRigh
                     rx={BORDER_RADIUS + 3}
                     ry={BORDER_RADIUS + 3}
                     fill="none"
-                    stroke="#ef4444"
+                    stroke={healthColors.glow}
                     strokeWidth={1.5}
                     opacity={0.3}
                 />
@@ -274,16 +387,77 @@ export function GraphNode({ node, position, size, highlighted, selected, hasRigh
                     {fault && <FaultBadge cx={leftPortX} cy={0} />}
                 </g>
             )}
-            <text
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={13}
-                fontFamily="Inter, system-ui, sans-serif"
-                fontWeight={500}
-                fill="#1f2937"
-            >
-                {node.name}
-            </text>
+            {/* Header: workload name + health dot + replica count */}
+            {hasPods ? (
+                <g style={{ pointerEvents: "none" }}>
+                    <circle cx={podsLeft + 3} cy={headerY} r={3.5} fill={healthDot} />
+                    <text
+                        x={podsLeft + 12}
+                        y={headerY}
+                        textAnchor="start"
+                        dominantBaseline="central"
+                        fontSize={11}
+                        fontFamily="Inter, system-ui, sans-serif"
+                        fontWeight={600}
+                        fill="#1f2937"
+                    >
+                        {truncateMid(node.name, 18)}
+                    </text>
+                    <text
+                        x={nodeWidth / 2 - POD_AREA_PAD}
+                        y={headerY}
+                        textAnchor="end"
+                        dominantBaseline="central"
+                        fontSize={9}
+                        fontFamily="Inter, system-ui, sans-serif"
+                        fontWeight={600}
+                        fill="#6b7280"
+                    >
+                        ×{node.podCount}
+                    </text>
+                    {/* Pod mini-cards */}
+                    {pods.map((pod, i) => (
+                        <PodMiniCard
+                            key={pod.podName}
+                            pod={pod}
+                            x={podsLeft}
+                            y={podsTop + i * (POD_CARD_H + POD_CARD_GAP)}
+                            width={podCardW}
+                        />
+                    ))}
+                </g>
+            ) : (
+                <g style={{ pointerEvents: "none" }}>
+                    {/* No pod-level metrics (synthetic node / scraper not running) */}
+                    <text
+                        x={0}
+                        y={-7}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={13}
+                        fontFamily="Inter, system-ui, sans-serif"
+                        fontWeight={500}
+                        fill="#1f2937"
+                    >
+                        {node.name}
+                    </text>
+                    <g>
+                        <circle cx={-14} cy={13} r={4} fill={healthDot} />
+                        <text
+                            x={-4}
+                            y={13}
+                            textAnchor="start"
+                            dominantBaseline="central"
+                            fontSize={10}
+                            fontFamily="Inter, system-ui, sans-serif"
+                            fontWeight={600}
+                            fill="#6b7280"
+                        >
+                            ×{node.podCount} {node.podCount === 1 ? "replica" : "replicas"}
+                        </text>
+                    </g>
+                </g>
+            )}
         </g>
     );
 }

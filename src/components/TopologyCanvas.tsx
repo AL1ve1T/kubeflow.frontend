@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { GraphSnapshot } from "../models";
 import type { EdgeDto } from "../models";
 import type { NodeDto } from "../models";
 import { GraphNode } from "./GraphNode";
-import { GraphEdge } from "./GraphEdge";
+import { GraphEdge, DASH_PERIOD, EDGE_FLOW_KEYFRAME } from "./GraphEdge";
 import { GraphCorridor } from "./GraphCorridor";
 import { EdgePopover } from "./EdgePopover";
 import { NodeDetailModal } from "./NodeDetailModal";
@@ -24,9 +24,6 @@ const CANVAS_W = 1000;
 const CANVAS_H = 600;
 const PAD_X = 120;
 const PAD_Y = 80;
-
-/** Edges not seen within this window are treated as inactive (rps=0). */
-const STALE_EDGE_MS = 2 * 60 * 1000;
 
 /**
  * Assign each node to a column based on longest-path from sources.
@@ -114,27 +111,8 @@ function computeLayout(
 }
 
 export function TopologyCanvas({ snapshot, strategyId, showInactiveEdges = true }: TopologyCanvasProps) {
-    const [clockNow, setClockNow] = useState(() => Date.now());
-    useEffect(() => {
-        const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
-        return () => window.clearInterval(timer);
-    }, []);
-
-    /**
-     * Zero out metrics for edges whose lastSeenAt is older than STALE_EDGE_MS.
-     * This ensures stale backend snapshots don't keep showing load that ended minutes ago.
-     */
-    const normalizedEdges = useMemo(
-        () =>
-            snapshot.edges.map((e) => {
-                const age = clockNow - new Date(e.lastSeenAt).getTime();
-                if (age > STALE_EDGE_MS) {
-                    return { ...e, requestsPerSecond: 0, loadLevel: "NORMAL" as const };
-                }
-                return e;
-            }),
-        [snapshot.edges, clockNow],
-    );
+    // Render edges exactly as provided by backend snapshots.
+    const normalizedEdges = snapshot.edges;
 
     const nodeCols = useMemo(() => assignColumns(snapshot.nodes, normalizedEdges), [snapshot.nodes, normalizedEdges]);
     const nodeGeometries = useMemo(
@@ -254,12 +232,15 @@ export function TopologyCanvas({ snapshot, strategyId, showInactiveEdges = true 
 
     const [detailNodeId, setDetailNodeId] = useState<string | null>(null);
 
-    const handleNodeClick = (nodeId: string, _e: React.MouseEvent) => {
-        const isDeselecting = selectedNodeId === nodeId;
-        toggleSelectedNode(nodeId);
-        setSelectedEdge(null);
-        setDetailNodeId(isDeselecting ? null : nodeId);
-    };
+    const handleNodeClick = useCallback(
+        (nodeId: string, _e: React.MouseEvent) => {
+            const isDeselecting = selectedNodeId === nodeId;
+            toggleSelectedNode(nodeId);
+            setSelectedEdge(null);
+            setDetailNodeId(isDeselecting ? null : nodeId);
+        },
+        [selectedNodeId, toggleSelectedNode],
+    );
 
     const getWorldPoint = (e: React.MouseEvent<SVGSVGElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -318,6 +299,9 @@ export function TopologyCanvas({ snapshot, strategyId, showInactiveEdges = true 
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleCanvasMouseLeave}
             >
+                {/* Flow animation keyframe defined once for all edges */}
+                <style>{`@keyframes ${EDGE_FLOW_KEYFRAME} { from { stroke-dashoffset: ${DASH_PERIOD}; } to { stroke-dashoffset: 0; } }`}</style>
+
                 {/* Dot grid pattern */}
                 <defs>
                     <pattern
