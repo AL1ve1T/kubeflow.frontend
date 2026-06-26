@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TopologyCanvas } from "./components/TopologyCanvas";
 import { ControlPanel } from "./components/ControlPanel";
 import { TimelineScrubber } from "./components/TimelineScrubber";
@@ -34,6 +34,16 @@ export function App() {
         const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
         return () => window.clearInterval(timer);
     }, []);
+
+    // When the SSE stream reconnects after a drop, immediately refresh history
+    // to backfill any snapshots that were missed during the disconnect period.
+    const prevStatusRef = useRef(status);
+    useEffect(() => {
+        if (prevStatusRef.current === "error" && status === "connected") {
+            refreshHistory();
+        }
+        prevStatusRef.current = status;
+    }, [status, refreshHistory]);
 
     const namespaces = useMemo(
         () => snapshots.map((s) => s.namespace),

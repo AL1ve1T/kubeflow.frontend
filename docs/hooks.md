@@ -10,8 +10,9 @@ Custom hooks in [src/hooks](../src/hooks). They split into **data-fetching** hoo
 Returns `{ snapshots, lastRefreshAt, status, error }`. Fetches the initial snapshot
 from `/api/graph`, then subscribes to `/api/graph/stream` (SSE) for live updates.
 Handles `message` and `graph-update` events; ignores malformed payloads. Status:
-`idle → subscribing → connected → error`. Cleans up the `EventSource` and aborts
-the initial fetch on unmount.
+`idle → subscribing → connected → error`. On reconnect (when `onopen` fires after
+an `onerror`), re-fetches `/api/graph` to backfill any snapshots missed during the
+disconnect. Cleans up the `EventSource` and aborts the initial fetch on unmount.
 
 ### useHistoryRange(namespace)
 [useHistoryRange.ts](../src/hooks/useHistoryRange.ts)
