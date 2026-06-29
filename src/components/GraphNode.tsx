@@ -289,201 +289,201 @@ function GraphNodeImpl({ node, position, size, highlighted, selected, hasRightOu
             style={{ cursor: onClick ? "pointer" : "default" }}
         >
             <g style={{ transformBox: "fill-box", transformOrigin: "center", animation: `${KF_NODE_APPEAR} 0.45s ease-out` }}>
-            {/* Selected ring – shown when this node is the focus */}
-            {selected && (
-                <rect
-                    x={-nodeWidth / 2 - 6}
-                    y={-nodeHeight / 2 - 6}
-                    width={nodeWidth + 12}
-                    height={nodeHeight + 12}
-                    rx={BORDER_RADIUS + 4}
-                    ry={BORDER_RADIUS + 4}
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth={2.5}
-                    opacity={0.8}
-                />
-            )}
-            {highlighted && (
-                <rect
-                    x={-nodeWidth / 2 - 3}
-                    y={-nodeHeight / 2 - 3}
-                    width={nodeWidth + 6}
-                    height={nodeHeight + 6}
-                    rx={BORDER_RADIUS + 2}
-                    ry={BORDER_RADIUS + 2}
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    opacity={0.45}
-                />
-            )}
-            <rect
-                x={-nodeWidth / 2}
-                y={-nodeHeight / 2}
-                width={nodeWidth}
-                height={nodeHeight}
-                rx={BORDER_RADIUS}
-                ry={BORDER_RADIUS}
-                fill="#ffffff"
-                stroke={healthColors ? healthColors.border : highlighted ? "#3b82f6" : "#d1d5db"}
-                strokeWidth={healthColors ? 2.5 : highlighted ? 2 : 1.5}
-            />
-            {/* Health glow ring */}
-            {healthColors && (
-                <rect
-                    x={-nodeWidth / 2 - 4}
-                    y={-nodeHeight / 2 - 4}
-                    width={nodeWidth + 8}
-                    height={nodeHeight + 8}
-                    rx={BORDER_RADIUS + 3}
-                    ry={BORDER_RADIUS + 3}
-                    fill="none"
-                    stroke={healthColors.glow}
-                    strokeWidth={1.5}
-                    opacity={0.3}
-                />
-            )}
-            {/* OUT hub – amber capsule on the right edge, outgoing forward edges */}
-            {hasRightOut && (
-                <g>
+                {/* Selected ring – shown when this node is the focus */}
+                {selected && (
                     <rect
-                        x={portX}
-                        y={portBaseY}
-                        width={portW}
-                        height={portH}
-                        rx={portW / 2}
-                        ry={portW / 2}
-                        fill="#f59e0b"
-                        stroke="#d97706"
-                        strokeWidth={1}
+                        x={-nodeWidth / 2 - 6}
+                        y={-nodeHeight / 2 - 6}
+                        width={nodeWidth + 12}
+                        height={nodeHeight + 12}
+                        rx={BORDER_RADIUS + 4}
+                        ry={BORDER_RADIUS + 4}
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth={2.5}
+                        opacity={0.8}
                     />
-                    <path
-                        d={`M ${hubCX - 4} ${outHubCY - 5} L ${hubCX + 5} ${outHubCY} L ${hubCX - 4} ${outHubCY + 5} Z`}
-                        fill="white"
-                        opacity={0.9}
-                        style={{ pointerEvents: "none" }}
-                    />
-                    {fault && <FaultBadge cx={portX + portW} cy={outHubCY} />}
-                </g>
-            )}
-            {/* IN hub – indigo capsule on the right edge, backward / same-column incoming edges */}
-            {hasRightIn && (
-                <g>
+                )}
+                {highlighted && (
                     <rect
-                        x={portX}
-                        y={portInY}
-                        width={portW}
-                        height={portH}
-                        rx={portW / 2}
-                        ry={portW / 2}
-                        fill="#6366f1"
-                        stroke="#4f46e5"
-                        strokeWidth={1}
+                        x={-nodeWidth / 2 - 3}
+                        y={-nodeHeight / 2 - 3}
+                        width={nodeWidth + 6}
+                        height={nodeHeight + 6}
+                        rx={BORDER_RADIUS + 2}
+                        ry={BORDER_RADIUS + 2}
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        opacity={0.45}
                     />
-                    <path
-                        d={`M ${hubCX + 4} ${inHubCY - 5} L ${hubCX - 5} ${inHubCY} L ${hubCX + 4} ${inHubCY + 5} Z`}
-                        fill="white"
-                        opacity={0.9}
-                        style={{ pointerEvents: "none" }}
-                    />
-                    {fault && <FaultBadge cx={portX + portW} cy={inHubCY} />}
-                </g>
-            )}
-            {/* LEFT IN – blue capsule on the left edge, forward incoming edges */}
-            {hasLeftIn && (
-                <g>
+                )}
+                <rect
+                    x={-nodeWidth / 2}
+                    y={-nodeHeight / 2}
+                    width={nodeWidth}
+                    height={nodeHeight}
+                    rx={BORDER_RADIUS}
+                    ry={BORDER_RADIUS}
+                    fill="#ffffff"
+                    stroke={healthColors ? healthColors.border : highlighted ? "#3b82f6" : "#d1d5db"}
+                    strokeWidth={healthColors ? 2.5 : highlighted ? 2 : 1.5}
+                />
+                {/* Health glow ring */}
+                {healthColors && (
                     <rect
-                        x={leftPortX}
-                        y={-portH / 2}
-                        width={portW}
-                        height={portH}
-                        rx={portW / 2}
-                        ry={portW / 2}
-                        fill="#3b82f6"
-                        stroke="#2563eb"
-                        strokeWidth={1}
+                        x={-nodeWidth / 2 - 4}
+                        y={-nodeHeight / 2 - 4}
+                        width={nodeWidth + 8}
+                        height={nodeHeight + 8}
+                        rx={BORDER_RADIUS + 3}
+                        ry={BORDER_RADIUS + 3}
+                        fill="none"
+                        stroke={healthColors.glow}
+                        strokeWidth={1.5}
+                        opacity={0.3}
                     />
-                    <path
-                        d={`M ${leftHubCX - 4} ${-5} L ${leftHubCX + 5} ${0} L ${leftHubCX - 4} ${5} Z`}
-                        fill="white"
-                        opacity={0.9}
-                        style={{ pointerEvents: "none" }}
-                    />
-                    {fault && <FaultBadge cx={leftPortX} cy={0} />}
-                </g>
-            )}
-            {/* Header: workload name + health dot + replica count */}
-            {hasPods ? (
-                <g style={{ pointerEvents: "none" }}>
-                    <circle cx={podsLeft + 3} cy={headerY} r={3.5} fill={healthDot} />
-                    <text
-                        x={podsLeft + 12}
-                        y={headerY}
-                        textAnchor="start"
-                        dominantBaseline="central"
-                        fontSize={11}
-                        fontFamily="Inter, system-ui, sans-serif"
-                        fontWeight={600}
-                        fill="#1f2937"
-                    >
-                        {truncateMid(node.name, 18)}
-                    </text>
-                    <text
-                        x={nodeWidth / 2 - POD_AREA_PAD}
-                        y={headerY}
-                        textAnchor="end"
-                        dominantBaseline="central"
-                        fontSize={9}
-                        fontFamily="Inter, system-ui, sans-serif"
-                        fontWeight={600}
-                        fill="#6b7280"
-                    >
-                        ×{node.podCount}
-                    </text>
-                    {/* Pod mini-cards */}
-                    {pods.map((pod, i) => (
-                        <PodMiniCard
-                            key={pod.podName}
-                            pod={pod}
-                            x={podsLeft}
-                            y={podsTop + i * (POD_CARD_H + POD_CARD_GAP)}
-                            width={podCardW}
-                        />
-                    ))}
-                </g>
-            ) : (
-                <g style={{ pointerEvents: "none" }}>
-                    {/* No pod-level metrics (synthetic node / scraper not running) */}
-                    <text
-                        x={0}
-                        y={-7}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={13}
-                        fontFamily="Inter, system-ui, sans-serif"
-                        fontWeight={500}
-                        fill="#1f2937"
-                    >
-                        {node.name}
-                    </text>
+                )}
+                {/* OUT hub – amber capsule on the right edge, outgoing forward edges */}
+                {hasRightOut && (
                     <g>
-                        <circle cx={-14} cy={13} r={4} fill={healthDot} />
+                        <rect
+                            x={portX}
+                            y={portBaseY}
+                            width={portW}
+                            height={portH}
+                            rx={portW / 2}
+                            ry={portW / 2}
+                            fill="#f59e0b"
+                            stroke="#d97706"
+                            strokeWidth={1}
+                        />
+                        <path
+                            d={`M ${hubCX - 4} ${outHubCY - 5} L ${hubCX + 5} ${outHubCY} L ${hubCX - 4} ${outHubCY + 5} Z`}
+                            fill="white"
+                            opacity={0.9}
+                            style={{ pointerEvents: "none" }}
+                        />
+                        {fault && <FaultBadge cx={portX + portW} cy={outHubCY} />}
+                    </g>
+                )}
+                {/* IN hub – indigo capsule on the right edge, backward / same-column incoming edges */}
+                {hasRightIn && (
+                    <g>
+                        <rect
+                            x={portX}
+                            y={portInY}
+                            width={portW}
+                            height={portH}
+                            rx={portW / 2}
+                            ry={portW / 2}
+                            fill="#6366f1"
+                            stroke="#4f46e5"
+                            strokeWidth={1}
+                        />
+                        <path
+                            d={`M ${hubCX + 4} ${inHubCY - 5} L ${hubCX - 5} ${inHubCY} L ${hubCX + 4} ${inHubCY + 5} Z`}
+                            fill="white"
+                            opacity={0.9}
+                            style={{ pointerEvents: "none" }}
+                        />
+                        {fault && <FaultBadge cx={portX + portW} cy={inHubCY} />}
+                    </g>
+                )}
+                {/* LEFT IN – blue capsule on the left edge, forward incoming edges */}
+                {hasLeftIn && (
+                    <g>
+                        <rect
+                            x={leftPortX}
+                            y={-portH / 2}
+                            width={portW}
+                            height={portH}
+                            rx={portW / 2}
+                            ry={portW / 2}
+                            fill="#3b82f6"
+                            stroke="#2563eb"
+                            strokeWidth={1}
+                        />
+                        <path
+                            d={`M ${leftHubCX - 4} ${-5} L ${leftHubCX + 5} ${0} L ${leftHubCX - 4} ${5} Z`}
+                            fill="white"
+                            opacity={0.9}
+                            style={{ pointerEvents: "none" }}
+                        />
+                        {fault && <FaultBadge cx={leftPortX} cy={0} />}
+                    </g>
+                )}
+                {/* Header: workload name + health dot + replica count */}
+                {hasPods ? (
+                    <g style={{ pointerEvents: "none" }}>
+                        <circle cx={podsLeft + 3} cy={headerY} r={3.5} fill={healthDot} />
                         <text
-                            x={-4}
-                            y={13}
+                            x={podsLeft + 12}
+                            y={headerY}
                             textAnchor="start"
                             dominantBaseline="central"
-                            fontSize={10}
+                            fontSize={11}
+                            fontFamily="Inter, system-ui, sans-serif"
+                            fontWeight={600}
+                            fill="#1f2937"
+                        >
+                            {truncateMid(node.name, 18)}
+                        </text>
+                        <text
+                            x={nodeWidth / 2 - POD_AREA_PAD}
+                            y={headerY}
+                            textAnchor="end"
+                            dominantBaseline="central"
+                            fontSize={9}
                             fontFamily="Inter, system-ui, sans-serif"
                             fontWeight={600}
                             fill="#6b7280"
                         >
-                            ×{node.podCount} {node.podCount === 1 ? "replica" : "replicas"}
+                            ×{node.podCount}
                         </text>
+                        {/* Pod mini-cards */}
+                        {pods.map((pod, i) => (
+                            <PodMiniCard
+                                key={pod.podName}
+                                pod={pod}
+                                x={podsLeft}
+                                y={podsTop + i * (POD_CARD_H + POD_CARD_GAP)}
+                                width={podCardW}
+                            />
+                        ))}
                     </g>
-                </g>
-            )}
+                ) : (
+                    <g style={{ pointerEvents: "none" }}>
+                        {/* No pod-level metrics (synthetic node / scraper not running) */}
+                        <text
+                            x={0}
+                            y={-7}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontSize={13}
+                            fontFamily="Inter, system-ui, sans-serif"
+                            fontWeight={500}
+                            fill="#1f2937"
+                        >
+                            {node.name}
+                        </text>
+                        <g>
+                            <circle cx={-14} cy={13} r={4} fill={healthDot} />
+                            <text
+                                x={-4}
+                                y={13}
+                                textAnchor="start"
+                                dominantBaseline="central"
+                                fontSize={10}
+                                fontFamily="Inter, system-ui, sans-serif"
+                                fontWeight={600}
+                                fill="#6b7280"
+                            >
+                                ×{node.podCount} {node.podCount === 1 ? "replica" : "replicas"}
+                            </text>
+                        </g>
+                    </g>
+                )}
             </g>
 
             {/* Status-change pulse – ring that fades out when health changes */}
