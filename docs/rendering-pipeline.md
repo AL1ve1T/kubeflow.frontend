@@ -78,6 +78,16 @@ Column labels are pinned as absolutely-positioned DOM (not SVG) at the top of th
 screen and follow their column horizontally via
 [columnHelpers](../src/helpers/columnHelpers.ts).
 
+## Change animations
+
+Keyframes from [animations.ts](../src/helpers/animations.ts) are injected once at the
+canvas root. Because nodes, pods, and edges are keyed by stable ids, React keeps
+existing elements mounted across snapshots while new ones mount fresh — so an
+entrance keyframe plays exactly once when something **appears** (new node, pod, or
+edge). For changes to elements that persist, [useChangeFlash](../src/hooks/useChangeFlash.ts)
+remounts a small overlay (edge load pulse, node/pod status ring) to replay a brief
+flash whenever the tracked load or status value changes.
+
 ## Interaction layers
 
 | Concern | Hook | Behaviour |
@@ -88,6 +98,12 @@ screen and follow their column horizontally via
 | Edge picking | [useEdgePicking](../src/hooks/useEdgePicking.ts) | Distance test against edge polylines/corridors for click target |
 
 `showInactiveEdges` filters out edges with `rps === 0` before picking and render.
+
+Pan updates and edge hover-picking are both coalesced to one update per
+animation frame (`requestAnimationFrame`): `useZoomPan` batches drag-pan
+`setPan` calls, and `TopologyCanvas` batches the `pickAt` hover scan and skips
+the `setHoveredEdgeIds` state write when the hovered edge set is unchanged. This
+keeps a burst of `mousemove` events from triggering redundant full re-renders.
 
 ## Overlays
 

@@ -42,7 +42,9 @@ flowchart TD
    history snapshot at `scrubIndex`.
 3. **[useHistoryRange](../src/hooks/useHistoryRange.ts)** loads a rolling 1-hour
    window of history snapshots from `/api/graph/history` and re-polls every 30s
-   while live.
+   while live. Live polls fetch incrementally (only snapshots newer than the
+   latest one already held) and merge/dedupe by `generatedAt`, so the full
+   window is downloaded only once on initial load.
 4. **[TopologyCanvas](../src/components/TopologyCanvas.tsx)** turns the snapshot
    into a laid-out, interactive SVG graph using the active
    [strategy](strategies.md).

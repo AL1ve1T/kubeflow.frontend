@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface Pan {
     x: number;
@@ -42,6 +42,31 @@ export function useZoomPan(
     const [pan, setPan] = useState<Pan>({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
     const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+    // Center the graph in the viewport once, on first mount, so nodes appear in
+    // the middle of the screen instead of anchored at the world origin (top-left).
+    const hasCenteredRef = useRef(false);
+    useLayoutEffect(() => {
+        if (hasCenteredRef.current) return;
+        const svg = svgRef.current;
+        if (!svg) return;
+        const rect = svg.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.maxX)) return;
+
+        const centerX = (bounds.minX + bounds.maxX) / 2;
+        const centerY = (bounds.minY + bounds.maxY) / 2;
+        setPan({
+            x: rect.width / 2 - centerX * zoom,
+            y: rect.height / 2 - centerY * zoom,
+        });
+        hasCenteredRef.current = true;
+    }, [bounds, svgRef, zoom]);
+
+    // Coalesce pan updates to one per animation frame so a burst of mousemove
+    // events does not trigger a full canvas re-render on every pointer sample.
+    const panRafRef = useRef<number | null>(null);
+    const pendingPanRef = useRef<Pan | null>(null);
 
     // Refs for closures in wheel listener
     const zoomState = useRef({ zoom, pan });
@@ -102,13 +127,35 @@ export function useZoomPan(
                 x: panStart.current.panX + (e.clientX - panStart.current.x),
                 y: panStart.current.panY + (e.clientY - panStart.current.y),
             };
-            setPan(clampPan(rawPan, zoom, bounds, vw, vh));
+            pendingPanRef.current = clampPan(rawPan, zoom, bounds, vw, vh);
+
+            if (panRafRef.current === null) {
+                panRafRef.current = requestAnimationFrame(() => {
+                    panRafRef.current = null;
+                    if (pendingPanRef.current) setPan(pendingPanRef.current);
+                });
+            }
         },
         [isPanning, zoom, bounds],
     );
 
     const handleMouseUp = useCallback(() => {
         setIsPanning(false);
+        if (panRafRef.current !== null) {
+            cancelAnimationFrame(panRafRef.current);
+            panRafRef.current = null;
+        }
+        if (pendingPanRef.current) {
+            setPan(pendingPanRef.current);
+            pendingPanRef.current = null;
+        }
+    }, []);
+
+    // Cancel any pending pan frame on unmount.
+    useEffect(() => {
+        return () => {
+            if (panRafRef.current !== null) cancelAnimationFrame(panRafRef.current);
+        };
     }, []);
 
     return {

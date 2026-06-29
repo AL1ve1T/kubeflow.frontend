@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { TopologyCanvas } from "./components/TopologyCanvas";
 import { ControlPanel } from "./components/ControlPanel";
 import { TimelineScrubber } from "./components/TimelineScrubber";
@@ -69,6 +69,25 @@ export function App() {
         return snapshots.find((s) => s.namespace === selectedNamespace) ?? null;
     }, [scrubIndex, historySnapshots, snapshots, selectedNamespace]);
 
+    // Rendering a new snapshot runs the full layout pipeline synchronously in
+    // TopologyCanvas. Deferring it lets React compute the heavy canvas in an
+    // interruptible background transition, so the sidebar, namespace switch, and
+    // timeline stay responsive instead of freezing while a snapshot loads.
+    const deferredSnapshot = useDeferredValue(activeSnapshot);
+    const isRenderingSnapshot = deferredSnapshot !== activeSnapshot;
+
+    // Track whether the first snapshot has ever been rendered. The initial open
+    // is the only time there is nothing on screen while the heavy first-layout
+    // computation runs, so we mask it with a full-screen loading overlay. Once a
+    // snapshot has rendered, later updates use the deferred render + "Updating…"
+    // badge instead, so the overlay never reappears.
+    const [hasRenderedSnapshot, setHasRenderedSnapshot] = useState(false);
+    useEffect(() => {
+        if (deferredSnapshot && !hasRenderedSnapshot) {
+            setHasRenderedSnapshot(true);
+        }
+    }, [deferredSnapshot, hasRenderedSnapshot]);
+
     const fallbackTimelinePoints = useMemo<NamespaceRequestTimelinePoint[]>(
         () =>
             historySnapshots.map((snapshot) => ({
@@ -131,9 +150,9 @@ export function App() {
 
             {/* Canvas area offset by sidebar width */}
             <div style={{ flex: 1, position: "relative", marginLeft: 220 }}>
-                {activeSnapshot ? (
+                {deferredSnapshot ? (
                     <TopologyCanvas
-                        snapshot={activeSnapshot}
+                        snapshot={deferredSnapshot}
                         strategyId={strategyId}
                         showInactiveEdges={showInactiveEdges}
                     />
@@ -150,6 +169,27 @@ export function App() {
                         }}
                     >
                         Waiting for graph snapshot...
+                    </div>
+                )}
+                {isRenderingSnapshot && deferredSnapshot && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 12,
+                            right: 12,
+                            zIndex: 6,
+                            background: "rgba(30,64,175,0.9)",
+                            color: "#ffffff",
+                            fontFamily: "Inter, system-ui, sans-serif",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: "4px 10px",
+                            borderRadius: 12,
+                            pointerEvents: "none",
+                            userSelect: "none",
+                        }}
+                    >
+                        Updating…
                     </div>
                 )}
                 <TimelineScrubber
@@ -183,6 +223,45 @@ export function App() {
                     }}
                 >
                     {error}
+                </div>
+            )}
+
+            {!hasRenderedSnapshot && (
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        zIndex: 50,
+                        background: "#ffffff",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 18,
+                        fontFamily: "Inter, system-ui, sans-serif",
+                    }}
+                >
+                    <style>{"@keyframes kv-spin { to { transform: rotate(360deg); } }"}</style>
+                    <div
+                        style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: "50%",
+                            border: "4px solid #e5e7eb",
+                            borderTopColor: "#1e40af",
+                            animation: "kv-spin 0.8s linear infinite",
+                        }}
+                    />
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#374151" }}>
+                        Loading topology…
+                    </div>
+                    <div style={{ fontSize: 13, color: "#6b7280" }}>
+                        {status === "error"
+                            ? "Connection problem — retrying…"
+                            : status === "connected"
+                                ? "Preparing graph…"
+                                : "Connecting to graph stream…"}
+                    </div>
                 </div>
             )}
         </div>

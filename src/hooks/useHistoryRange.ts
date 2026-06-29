@@ -19,6 +19,9 @@ export function useHistoryRange(namespace: string | null): HistoryRangeData {
     // existing scrubIndex values remain valid as new snapshots are appended.
     const windowStartMsRef = useRef<number>(Date.now() - HISTORY_WINDOW_MS);
     const cancelledRef = useRef(false);
+    // Timestamp (ms) of the newest snapshot we already hold. Live polls fetch
+    // only from this point forward so we never re-download the whole window.
+    const lastSnapshotTimeRef = useRef<number | null>(null);
 
     const [state, setState] = useState<Omit<HistoryRangeData, "refresh">>(() => ({
         historySnapshots: [],
@@ -44,13 +47,33 @@ export function useHistoryRange(namespace: string | null): HistoryRangeData {
                 }));
             }
 
+            // On live polls, only request snapshots newer than the most recent
+            // one we already have. The initial load pulls the full window.
+            const fetchFromMs =
+                !isInitial && lastSnapshotTimeRef.current
+                    ? lastSnapshotTimeRef.current
+                    : windowStartMs;
+
             try {
                 const snapshots = await fetchHistory({
-                    from: new Date(windowStartMs).toISOString(),
+                    from: new Date(fetchFromMs).toISOString(),
                     to: new Date(windowEndMs).toISOString(),
                     namespace: namespace ?? undefined,
                 });
                 if (cancelledRef.current) return;
+
+                // Track the newest snapshot timestamp so the next poll can fetch
+                // incrementally from this point.
+                const newestFetchedMs = snapshots.reduce(
+                    (max, s) => Math.max(max, new Date(s.generatedAt).getTime()),
+                    0,
+                );
+                if (newestFetchedMs > 0) {
+                    lastSnapshotTimeRef.current = Math.max(
+                        lastSnapshotTimeRef.current ?? 0,
+                        newestFetchedMs,
+                    );
+                }
 
                 // Deduplicate by generatedAt then sort ascending so that
                 // appending new ticks at the end never invalidates existing indices.
@@ -90,6 +113,7 @@ export function useHistoryRange(namespace: string | null): HistoryRangeData {
         // Reset anchor and fetch state when namespace changes
         cancelledRef.current = false;
         windowStartMsRef.current = Date.now() - HISTORY_WINDOW_MS;
+        lastSnapshotTimeRef.current = null;
         setState({
             historySnapshots: [],
             loading: false,

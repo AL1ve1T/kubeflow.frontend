@@ -50,6 +50,18 @@ hides `rps === 0` edges entirely.
 Segments leaving an **OUT** hub are tinted amber; segments arriving at an **IN** hub
 are tinted indigo.
 
+## Change animations
+
+Graph mutations are eased in with subtle motion (keyframes in
+[animations.ts](../src/helpers/animations.ts)):
+
+- **New node / pod / edge** — fades (and slightly scales/slides) in on first appearance.
+- **Edge load change** — a brief brightened pulse runs along the path when width/colour/rps changes.
+- **Status change** — a coloured ring pulses around a node (roll-up health) or pod (phase).
+
+These replay via [useChangeFlash](../src/hooks/useChangeFlash.ts) whenever the tracked
+value changes; the perpetual dashed edge flow is unrelated (`EDGE_FLOW_KEYFRAME`).
+
 ## Canvas chrome
 
 - Dot-grid background; area outside the node bounding box is greyed via an SVG mask.

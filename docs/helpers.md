@@ -39,6 +39,15 @@ picking), `color`, `width`, `rps`, `edgeIds`, `showEndDot`, and optional
 `hubTint` (`"out"` amber / `"in"` indigo). `CorridorRenderItem` is a vertical trunk
 with `x`, `minY`/`maxY`, `color`, `width` (12–30px by total RPS), and `edgeIds`.
 
+## animations.ts
+[animations.ts](../src/helpers/animations.ts) — shared CSS keyframes for graph
+change animations. Exports keyframe-name constants (`KF_NODE_APPEAR`,
+`KF_POD_APPEAR`, `KF_EDGE_APPEAR`, `KF_STATUS_FLASH`, `KF_LOAD_FLASH`) and
+`GRAPH_ANIMATION_CSS`, the keyframe block injected once by `TopologyCanvas`.
+Entrance keyframes (`*_APPEAR`) play once when a node/pod/edge first mounts;
+flash keyframes pulse-and-fade an overlay that is replayed on demand via
+[useChangeFlash](../src/hooks/useChangeFlash.ts) when load or status changes.
+
 ## healthColor.ts
 [healthColor.ts](../src/helpers/healthColor.ts) — pod readiness color.
 

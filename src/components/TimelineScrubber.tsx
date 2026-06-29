@@ -80,17 +80,32 @@ function TimelineScrubberImpl({
             return PAD_TOP + (1 - value / denom) * (100 - PAD_TOP - PAD_BOTTOM);
         };
 
+        // Parse each timeline timestamp exactly once. Repeated Date parsing
+        // inside the per-snapshot nearest-point lookup was the main-thread
+        // bottleneck that froze the UI while a full history window loaded.
+        const pointTimes = timelinePoints.map((point) => new Date(point.timestamp).getTime());
+
+        // timelinePoints is sorted ascending by timestamp, so the closest point
+        // to a given time is found with a binary search (O(log n)) instead of a
+        // full linear scan (O(n)) per history snapshot.
         const nearestPoint = (timeMs: number): NamespaceRequestTimelinePoint | null => {
-            let best: NamespaceRequestTimelinePoint | null = null;
-            let bestDist = Number.POSITIVE_INFINITY;
-            for (const point of timelinePoints) {
-                const dist = Math.abs(new Date(point.timestamp).getTime() - timeMs);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    best = point;
-                }
+            if (timelinePoints.length === 0) return null;
+            let lo = 0;
+            let hi = pointTimes.length - 1;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (pointTimes[mid] < timeMs) lo = mid + 1;
+                else hi = mid;
             }
-            return best;
+            // `lo` is the first index whose time >= timeMs; the nearer of it and
+            // its predecessor is the closest point.
+            if (
+                lo > 0 &&
+                Math.abs(pointTimes[lo - 1] - timeMs) <= Math.abs(pointTimes[lo] - timeMs)
+            ) {
+                return timelinePoints[lo - 1];
+            }
+            return timelinePoints[lo];
         };
 
         // One entry per history snapshot, projected onto the traffic curve so
@@ -111,7 +126,7 @@ function TimelineScrubberImpl({
 
         const linePath = timelinePoints
             .map((point, idx) => {
-                const x = xOf(new Date(point.timestamp).getTime());
+                const x = xOf(pointTimes[idx]);
                 const y = yOf(point.totalRequests);
                 return `${idx === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
             })
@@ -127,7 +142,7 @@ function TimelineScrubberImpl({
         if (timelinePoints.length >= 2) {
             const coord = (i: number) => {
                 const p = timelinePoints[i];
-                return `${xOf(new Date(p.timestamp).getTime()).toFixed(2)} ${yOf(p.totalRequests).toFixed(2)}`;
+                return `${xOf(pointTimes[i]).toFixed(2)} ${yOf(p.totalRequests).toFixed(2)}`;
             };
             const segColor = (i: number) =>
                 readinessColor(

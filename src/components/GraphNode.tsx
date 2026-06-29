@@ -1,6 +1,8 @@
 import { memo } from "react";
 import type { NodeDto, PodDto, PodPhase } from "../models";
 import { NodeType } from "../models";
+import { useChangeFlash } from "../hooks/useChangeFlash";
+import { KF_NODE_APPEAR, KF_POD_APPEAR, KF_STATUS_FLASH } from "../helpers/animations";
 import {
     BAR_WIDTH,
     BORDER_RADIUS,
@@ -81,6 +83,9 @@ function PodMiniCard({ pod, x, y, width }: { pod: PodDto; x: number; y: number; 
     const barX = x + 8 + labelW;
     const barW = Math.max(10, width - 16 - labelW - valW);
 
+    // Replay a brief ring pulse whenever the pod's phase (status) changes.
+    const phaseFlashKey = useChangeFlash(pod.podPhase);
+
     function bar(rowY: number, label: string, value: number) {
         const has = value > 0;
         const pct = Math.round(value * 100);
@@ -101,7 +106,7 @@ function PodMiniCard({ pod, x, y, width }: { pod: PodDto; x: number; y: number; 
     }
 
     return (
-        <g style={{ pointerEvents: "none" }}>
+        <g style={{ pointerEvents: "none", animation: `${KF_POD_APPEAR} 0.4s ease-out` }}>
             <rect
                 x={x}
                 y={y}
@@ -123,6 +128,23 @@ function PodMiniCard({ pod, x, y, width }: { pod: PodDto; x: number; y: number; 
             {/* CPU + RAM mini bars */}
             {bar(y + 20, "CPU", pod.cpuUtilization)}
             {bar(y + 28, "RAM", pod.memoryUtilization)}
+
+            {/* Phase-change pulse */}
+            {phaseFlashKey > 0 && (
+                <rect
+                    key={phaseFlashKey}
+                    x={x - 1.5}
+                    y={y - 1.5}
+                    width={width + 3}
+                    height={POD_CARD_H + 3}
+                    rx={7}
+                    ry={7}
+                    fill="none"
+                    stroke={phaseColor}
+                    strokeWidth={2}
+                    style={{ transformBox: "fill-box", transformOrigin: "center", animation: `${KF_STATUS_FLASH} 0.6s ease-out` }}
+                />
+            )}
         </g>
     );
 }
@@ -164,6 +186,9 @@ function GraphNodeImpl({ node, position, size, highlighted, selected, hasRightOu
     const health = isBar ? "neutral" : getHealthState(node);
     const healthColors = HEALTH_COLORS[health];
     const fault = health === "dead" || health === "degraded";
+
+    // Replay a brief ring pulse whenever the node's roll-up health status changes.
+    const statusFlashKey = useChangeFlash(health);
 
     // Hub port geometry – capsule shapes straddling the right edge of the node
     const portW = HUB_WIDTH;
@@ -263,6 +288,7 @@ function GraphNodeImpl({ node, position, size, highlighted, selected, hasRightOu
             onClick={(e) => { e.stopPropagation(); onClick?.(node.id, e); }}
             style={{ cursor: onClick ? "pointer" : "default" }}
         >
+            <g style={{ transformBox: "fill-box", transformOrigin: "center", animation: `${KF_NODE_APPEAR} 0.45s ease-out` }}>
             {/* Selected ring – shown when this node is the focus */}
             {selected && (
                 <rect
@@ -456,6 +482,27 @@ function GraphNodeImpl({ node, position, size, highlighted, selected, hasRightOu
                             ×{node.podCount} {node.podCount === 1 ? "replica" : "replicas"}
                         </text>
                     </g>
+                </g>
+            )}
+            </g>
+
+            {/* Status-change pulse – ring that fades out when health changes */}
+            {statusFlashKey > 0 && (healthColors || health !== "neutral") && (
+                <g
+                    key={statusFlashKey}
+                    style={{ pointerEvents: "none", transformBox: "fill-box", transformOrigin: "center", animation: `${KF_STATUS_FLASH} 0.6s ease-out` }}
+                >
+                    <rect
+                        x={-nodeWidth / 2 - 4}
+                        y={-nodeHeight / 2 - 4}
+                        width={nodeWidth + 8}
+                        height={nodeHeight + 8}
+                        rx={BORDER_RADIUS + 3}
+                        ry={BORDER_RADIUS + 3}
+                        fill="none"
+                        stroke={healthColors ? healthColors.glow : healthDot}
+                        strokeWidth={3}
+                    />
                 </g>
             )}
         </g>

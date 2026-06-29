@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GraphSnapshot } from "../models";
 import type { EdgeDto } from "../models";
 import type { NodeDto } from "../models";
@@ -13,6 +13,7 @@ import { useEdgePicking } from "../hooks/useEdgePicking";
 import { getStrategy } from "../strategies";
 import { getColumnLabel, getColumnLabelScreenX } from "../helpers/columnHelpers";
 import { BAR_WIDTH, buildNodeGeometries, NODE_HEIGHT, NODE_WIDTH, type NodeGeometry } from "../helpers/nodeGeometry";
+import { GRAPH_ANIMATION_CSS } from "../helpers/animations";
 
 interface TopologyCanvasProps {
     snapshot: GraphSnapshot;
@@ -250,12 +251,40 @@ export function TopologyCanvas({ snapshot, strategyId, showInactiveEdges = true 
         };
     };
 
+    // Coalesce edge hover-picking to one geometric scan per animation frame and
+    // skip redundant state writes when the hovered edge set has not changed.
+    const pickRafRef = useRef<number | null>(null);
+    const pendingWorldPointRef = useRef<{ x: number; y: number } | null>(null);
+    const lastHoveredEdgeKeyRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (pickRafRef.current !== null) cancelAnimationFrame(pickRafRef.current);
+        };
+    }, []);
+
     const handleCanvasMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
         handleMouseMove(e);
-        if (isPanning || hoveredNodeId) return;
+        if (isPanning || hoveredNodeId) {
+            lastHoveredEdgeKeyRef.current = null;
+            return;
+        }
 
-        const picked = pickAt(getWorldPoint(e));
-        setHoveredEdgeIds(picked?.edgeIds ?? null);
+        pendingWorldPointRef.current = getWorldPoint(e);
+        if (pickRafRef.current !== null) return;
+
+        pickRafRef.current = requestAnimationFrame(() => {
+            pickRafRef.current = null;
+            const point = pendingWorldPointRef.current;
+            if (!point) return;
+
+            const picked = pickAt(point);
+            const key = picked?.edgeIds.join("|") ?? null;
+            if (key !== lastHoveredEdgeKeyRef.current) {
+                lastHoveredEdgeKeyRef.current = key;
+                setHoveredEdgeIds(picked?.edgeIds ?? null);
+            }
+        });
     };
 
     const handleCanvasClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -276,6 +305,7 @@ export function TopologyCanvas({ snapshot, strategyId, showInactiveEdges = true 
     const handleCanvasMouseLeave = () => {
         handleMouseUp();
         clearHover();
+        lastHoveredEdgeKeyRef.current = null;
     };
 
     return (
@@ -301,6 +331,9 @@ export function TopologyCanvas({ snapshot, strategyId, showInactiveEdges = true 
             >
                 {/* Flow animation keyframe defined once for all edges */}
                 <style>{`@keyframes ${EDGE_FLOW_KEYFRAME} { from { stroke-dashoffset: ${DASH_PERIOD}; } to { stroke-dashoffset: 0; } }`}</style>
+
+                {/* Entrance / change-flash keyframes for graph mutations */}
+                <style>{GRAPH_ANIMATION_CSS}</style>
 
                 {/* Dot grid pattern */}
                 <defs>

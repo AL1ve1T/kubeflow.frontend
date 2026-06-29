@@ -1,4 +1,6 @@
 import { memo } from "react";
+import { useChangeFlash } from "../hooks/useChangeFlash";
+import { KF_EDGE_APPEAR, KF_LOAD_FLASH } from "../helpers/animations";
 
 interface Position {
     x: number;
@@ -86,8 +88,11 @@ function GraphEdgeImpl({ path, end, color, width, rps, showEndDot, hubTint, high
     const rpsLabel = rps >= 10 ? `${Math.round(rps)} rps` : `${rps.toFixed(1)} rps`;
     const rpsLabelW = rpsLabel.length * 5;
 
+    // Replay a brief pulse whenever the edge's load (width/colour/rps) changes.
+    const loadFlashKey = useChangeFlash(`${color}|${Math.round(width * 10)}|${Math.round(rps)}`);
+
     return (
-        <g style={{ pointerEvents: "none" }}>
+        <g style={{ pointerEvents: "none", animation: `${KF_EDGE_APPEAR} 0.45s ease-out` }}>
             {/* Hover glow */}
             {highlighted && (
                 <path d={path} fill="none" stroke={outerColor} strokeWidth={width + 8} opacity={0.28} strokeLinecap="round" strokeLinejoin="round" />
@@ -141,6 +146,20 @@ function GraphEdgeImpl({ path, end, color, width, rps, showEndDot, hubTint, high
             {/* Terminal dot at branch end (arrival at IN hub) */}
             {showEndDot && (
                 <circle cx={end.x} cy={end.y} r={dotRadius} fill={tintColor ?? outerColor} />
+            )}
+
+            {/* Load-change pulse – brightened overlay that fades out on each change */}
+            {loadFlashKey > 0 && (
+                <path
+                    key={loadFlashKey}
+                    d={path}
+                    fill="none"
+                    stroke={lightenColor(color, 0.5)}
+                    strokeWidth={width + 6}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ animation: `${KF_LOAD_FLASH} 0.7s ease-out` }}
+                />
             )}
         </g>
     );
